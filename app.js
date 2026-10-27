@@ -1,3 +1,22 @@
+// ---- Backend connection ----
+// Address of the Flask API (see backend/README.md). Set to "" to run without a backend (guest mode only).
+const API_BASE = "http://localhost:5000/api";
+const TOKEN_KEY = "vaaniai_token";
+function authToken(){try{return localStorage.getItem(TOKEN_KEY)||sessionStorage.getItem(TOKEN_KEY)}catch{return null}}
+async function api(path,{method="GET",json,body,auth=true}={}){
+  const headers={},token=auth?authToken():null;
+  if(json!==undefined)headers["Content-Type"]="application/json";
+  if(token)headers.Authorization="Bearer "+token;
+  let res;
+  try{res=await fetch(API_BASE+path,{method,headers,body:json!==undefined?JSON.stringify(json):body})}
+  catch{throw new Error("Cannot reach the server. Check that the backend is running.")}
+  let data=null;try{data=await res.json()}catch{}
+  if(!res.ok){
+    if(res.status===401&&token)document.dispatchEvent(new Event("vaani:session-expired"));
+    const err=new Error((data&&data.error)||"Something went wrong ("+res.status+").");err.status=res.status;throw err;
+  }
+  return data;
+}
 const KEY = "vaaniai_speech_attempts_v1";
 const soundSets = {
   Hindi: [
@@ -80,8 +99,15 @@ function stopMeter(){
   v.querySelectorAll(".visual-bars i").forEach(b=>b.style.height="");
 }
 
-function getAttempts(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return []}}
-function setAttempts(items){localStorage.setItem(KEY,JSON.stringify(items))}
+let attemptsCache=null;
+function getAttempts(){if(attemptsCache===null){try{attemptsCache=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{attemptsCache=[]}}return attemptsCache}
+function setAttempts(items){attemptsCache=items;if(!authToken())localStorage.setItem(KEY,JSON.stringify(items))}
+function fromServer(a){return{id:a.id,date:new Date(a.created_at).toLocaleString(),language:a.language,sound:a.sound,words:a.words,feeling:a.feeling,note:a.note||"",duration:a.has_audio?formatTime(a.duration_seconds||0):"No audio"}}
+async function loadAttempts(){
+  if(!authToken()){attemptsCache=null;updateHome();return}
+  try{attemptsCache=(await api("/attempts")).map(fromServer)}catch(err){if(err.status!==401)notify(err.message)}
+  updateHome();if($("progress").classList.contains("active"))renderProgress();
+}
 function notify(message){const t=$("toast");t.textContent=message;t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2800)}
 function escapeHTML(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function goTab(name){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===name));document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));const titles={home:"Welcome to VaaniAI",practice:"Speech practice",progress:"My progress",learn:"Learn & support"};$("pageTitle").textContent=titles[name]||"VaaniAI";replay($("pageTitle"),"swap");$("sidebar").classList.remove("open");if(name==="progress")renderProgress();if(name==="home")updateHome();window.scrollTo({top:0,behavior:"smooth"})}
@@ -147,13 +173,24 @@ $("recordButton").addEventListener("click",()=>{
   if(recorder&&recorder.state==="recording"){recorder.stop();return}
   startRecording();
 });
-$("saveAttempt").addEventListener("click",()=>{
+$("saveAttempt").addEventListener("click",async()=>{
   if(recorder&&recorder.state==="recording"){notify("Stop the recording before saving.");return}
-  const s=currentSound();
-  const attempt={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),date:new Date().toLocaleString(),language:$("languageSelect").value,sound:s.name,words:s.words.join(", "),feeling:$("feelingSelect").value,note:$("attemptNote").value.trim(),duration:recordingBlob?formatTime(elapsed):"No audio"};
-  const all=getAttempts();all.unshift(attempt);setAttempts(all);
+  const s=currentSound(),button=$("saveAttempt");
+  if(authToken()){
+    const fd=new FormData();
+    fd.append("language",$("languageSelect").value);fd.append("sound",s.name);fd.append("words",s.words.join(", "));
+    fd.append("feeling",$("feelingSelect").value);fd.append("note",$("attemptNote").value.trim());fd.append("duration_seconds",String(recordingBlob?elapsed:0));
+    if(recordingBlob)fd.append("audio",recordingBlob,"attempt");
+    button.disabled=true;
+    try{const saved=await api("/attempts",{method:"POST",body:fd});getAttempts().unshift(fromServer(saved))}
+    catch(err){notify(err.message);button.disabled=false;return}
+    button.disabled=false;
+  }else{
+    const attempt={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),date:new Date().toLocaleString(),language:$("languageSelect").value,sound:s.name,words:s.words.join(", "),feeling:$("feelingSelect").value,note:$("attemptNote").value.trim(),duration:recordingBlob?formatTime(elapsed):"No audio"};
+    const all=getAttempts();all.unshift(attempt);setAttempts(all);
+  }
   $("attemptNote").value="";recordingBlob=null;$("audioPlayback").removeAttribute("src");$("audioPlayback").hidden=true;$("recordTimer").textContent="00:00";elapsed=0;
-  updateHome();notify("Practice attempt saved on this device.");burst($("saveAttempt"));goTab("progress");
+  updateHome();notify(authToken()?"Practice attempt saved to your account.":"Practice attempt saved on this device.");burst($("saveAttempt"));goTab("progress");
 });
 function updateHome(){const a=getAttempts();countTo($("attemptCount"),a.length);$("homeLanguage").textContent=a[0]?.language||$("languageSelect").value;$("homeFocus").textContent=a[0]?.sound||currentSound().name}
 function renderProgress(){
@@ -175,7 +212,7 @@ function openTopic(key){const t=topicTips[key];if(!t)return;$("modalTitle").text
 document.querySelectorAll("[data-topic]").forEach(b=>b.addEventListener("click",()=>openTopic(b.dataset.topic)));
 function closeModal(){shade.hidden=true}
 $("modalX").addEventListener("click",closeModal);$("modalOkay").addEventListener("click",closeModal);shade.addEventListener("click",e=>{if(e.target===shade)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-function profilePrompt(){const name=prompt("Enter a display name for this local demo:",$("userName").textContent);if(name===null)return;const cleaned=name.trim().slice(0,35)||"Guest";$("userName").textContent=cleaned;$("chipName").textContent=cleaned;$("userAvatar").textContent=cleaned.charAt(0).toUpperCase();$("chipInitial").textContent=cleaned.charAt(0).toUpperCase();localStorage.setItem("vaaniai_demo_user",cleaned);const role=prompt("Choose demo role: Client, Clinician, or Administrator","Client");if(role){$("roleLabel").textContent=role+" workspace";notify("Demo profile updated. Backend role permissions are not connected.");}}
+function profilePrompt(){if(authToken()){notify("Your name and role are set by your account.");return}const name=prompt("Enter a display name for this local demo:",$("userName").textContent);if(name===null)return;const cleaned=name.trim().slice(0,35)||"Guest";$("userName").textContent=cleaned;$("chipName").textContent=cleaned;$("userAvatar").textContent=cleaned.charAt(0).toUpperCase();$("chipInitial").textContent=cleaned.charAt(0).toUpperCase();localStorage.setItem("vaaniai_demo_user",cleaned);const role=prompt("Choose demo role: Client, Clinician, or Administrator","Client");if(role){$("roleLabel").textContent=role+" workspace";notify("Demo profile updated. Backend role permissions are not connected.");}}
 $("profileBtn").addEventListener("click",profilePrompt);$("userChip").addEventListener("click",profilePrompt);
 const savedName=localStorage.getItem("vaaniai_demo_user")||"Yuval";$("userName").textContent=savedName;$("chipName").textContent=savedName;$("userAvatar").textContent=savedName.charAt(0).toUpperCase();$("chipInitial").textContent=savedName.charAt(0).toUpperCase();
 $("today").textContent=new Date().toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
@@ -209,21 +246,19 @@ setInterval(()=>{
 // Once the real API routes are confirmed, replace getAttempts/setAttempts with authenticated fetch() requests.
 // Audio is recorded in the browser only and is not uploaded to a server.
 
-// ===== Login (merged from login.js) =====
-// Demo sign-in only: nothing is verified or sent to a server.
+// ===== Login / account =====
+// Signed-in users talk to the Flask API. "Continue as guest" works without a server and keeps data in this browser only.
 (function(){
   "use strict";
 
-  // Set API_BASE to your Flask URL (e.g. "http://localhost:5000/api") and replace the
-  // commented fetch() below with your backend's real routes, field names and JWT handling.
-  var API_BASE = "";
-  var USER_KEY = "vaaniai_demo_user";   // same key the profile prompt above uses
+  var USER_KEY = "vaaniai_demo_user";
   var ROLE_KEY = "vaaniai_demo_role";
   var AUTH_KEY = "vaaniai_demo_signed_in";
   var root = document.documentElement;
   var mode = "login";
 
   function safe(fn){ try{ return fn() }catch(e){ return null } }
+  function cap(role){ return role ? role.charAt(0).toUpperCase() + role.slice(1) : role }
 
   function applyUser(name, role){
     var n = name || "Guest";
@@ -231,7 +266,7 @@ setInterval(()=>{
     $("chipName").textContent = n;
     $("userAvatar").textContent = n.charAt(0).toUpperCase();
     $("chipInitial").textContent = n.charAt(0).toUpperCase();
-    if(role) $("roleLabel").textContent = role + " workspace";
+    if(role) $("roleLabel").textContent = cap(role) + " workspace";
   }
 
   function setMode(next){
@@ -240,6 +275,7 @@ setInterval(()=>{
     $("tabLogin").setAttribute("aria-selected", String(!reg));
     $("tabRegister").setAttribute("aria-selected", String(reg));
     $("nameField").hidden = !reg;
+    $("roleField").hidden = !reg;
     $("formTitle").textContent = reg ? "Create your account" : "Sign in";
     $("formSub").textContent = reg ? "Set up a profile to save your practice attempts." : "Use your VaaniAI account to open your practice space.";
     $("submitBtn").innerHTML = (reg ? "Create account" : "Sign in") + " <span>→</span>";
@@ -248,7 +284,7 @@ setInterval(()=>{
   }
 
   function clearErrors(){
-    ["nameError","emailError","passwordError"].forEach(function(id){ $(id).textContent = "" });
+    ["nameError","emailError","passwordError","formError"].forEach(function(id){ $(id).textContent = "" });
     ["fullName","email","password"].forEach(function(id){ $(id).removeAttribute("aria-invalid") });
   }
 
@@ -266,36 +302,46 @@ setInterval(()=>{
     if(mode === "register" && !name){ fail("fullName","nameError","Enter your name."); ok = false; }
     if(!email){ fail("email","emailError","Enter your email address."); ok = false; }
     else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("email","emailError","Enter a valid email, like name@example.com."); ok = false; }
-    if(pw.length < 6){ fail("password","passwordError","Use at least 6 characters."); ok = false; }
+    if(pw.length < 8){ fail("password","passwordError","Use at least 8 characters."); ok = false; }
     return ok;
   }
 
-  function nameFromEmail(email){
-    var base = email.split("@")[0].replace(/[._-]+/g, " ").trim();
-    return base ? base.replace(/\b\w/g, function(c){ return c.toUpperCase() }).slice(0,35) : "Guest";
-  }
-
-  function signIn(displayName, role){
-    var store = $("remember").checked ? localStorage : sessionStorage;
-    safe(function(){ localStorage.setItem(USER_KEY, displayName) });
-    safe(function(){ localStorage.setItem(ROLE_KEY, role) });
-    safe(function(){ store.setItem(AUTH_KEY, "1") });
+  function showSignedIn(displayName, role){
     applyUser(displayName, role);
     $("loginForm").reset();
     setMode("login");
     root.classList.remove("logged-out");
     goTab("home");
-    window.scrollTo(0, 0);
+    loadAttempts();
     notify("Welcome, " + displayName + ".");
   }
 
-  function signOut(){
-    safe(function(){ localStorage.removeItem(AUTH_KEY) });
-    safe(function(){ sessionStorage.removeItem(AUTH_KEY) });
+  // Server account: keep the token (localStorage if "keep me signed in", else this tab only).
+  function signInAccount(data){
+    var store = $("remember").checked ? localStorage : sessionStorage;
+    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
+    safe(function(){ store.setItem(TOKEN_KEY, data.access_token); store.setItem(AUTH_KEY, "1") });
+    safe(function(){ localStorage.setItem(USER_KEY, data.user.name); localStorage.setItem(ROLE_KEY, data.user.role) });
+    showSignedIn(data.user.name, data.user.role);
+  }
+
+  // Guest: no server, no token.
+  function signInGuest(){
+    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
+    safe(function(){ localStorage.setItem(USER_KEY, "Guest"); localStorage.setItem(ROLE_KEY, "client"); sessionStorage.setItem(AUTH_KEY, "1") });
+    attemptsCache = null;
+    showSignedIn("Guest", "client");
+  }
+
+  function signOut(message){
+    if(authToken()){ api("/logout", {method:"POST"}).catch(function(){}) }   // revoke the token on the server (best effort)
+    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
+    safe(function(){ localStorage.removeItem(AUTH_KEY); sessionStorage.removeItem(AUTH_KEY) });
+    attemptsCache = null;
     $("sidebar").classList.remove("open");
     root.classList.add("logged-out");
     window.scrollTo(0, 0);
-    notify("You have been logged out.");
+    notify(message || "You have been logged out.");
   }
 
   $("tabLogin").addEventListener("click", function(){ setMode("login") });
@@ -311,34 +357,38 @@ setInterval(()=>{
   });
 
   $("forgotBtn").addEventListener("click", function(){
-    notify("Password reset needs the backend. Not connected in this demo.");
+    notify("Password reset is not available yet. Ask your administrator to help.");
   });
 
-  $("guestBtn").addEventListener("click", function(){ signIn("Guest", $("role").value) });
+  $("guestBtn").addEventListener("click", signInGuest);
 
-  $("loginForm").addEventListener("submit", function(e){
+  $("loginForm").addEventListener("submit", async function(e){
     e.preventDefault();
     if(!validate()) return;
-    var email = $("email").value.trim();
-    var role = $("role").value;
-    var name = mode === "register" ? $("fullName").value.trim() : nameFromEmail(email);
-    if(API_BASE){
-      /* fetch(API_BASE + (mode === "register" ? "/register" : "/login"), {
-           method: "POST",
-           headers: {"Content-Type":"application/json"},
-           body: JSON.stringify({ email: email, password: $("password").value, name: name, role: role })
-         }).then(r => r.json()).then(data => { store data.access_token; signIn(name, role); }); */
-      notify("API_BASE is set but the request code is not written yet.");
-      return;
+    var btn = $("submitBtn"), label = btn.innerHTML;
+    var body = {email: $("email").value.trim(), password: $("password").value};
+    if(mode === "register"){ body.name = $("fullName").value.trim(); body.role = $("role").value.toLowerCase(); }
+    btn.disabled = true; btn.textContent = mode === "register" ? "Creating account…" : "Signing in…";
+    try{
+      var data = await api(mode === "register" ? "/register" : "/login", {method:"POST", json:body, auth:false});
+      signInAccount(data);
+    }catch(err){
+      $("formError").textContent = err.message;
+    }finally{
+      btn.disabled = false; btn.innerHTML = label;
     }
-    signIn(name, role);
   });
 
-  $("logoutBtn").addEventListener("click", signOut);
+  $("logoutBtn").addEventListener("click", function(){ signOut(); });
+  document.addEventListener("vaani:session-expired", function(){ if(!root.classList.contains("logged-out")) signOut("Your session expired. Please sign in again."); });
 
-  // Restore the saved role label when the app opens already signed in.
-  var savedRole = safe(function(){ return localStorage.getItem(ROLE_KEY) });
-  if(savedRole) $("roleLabel").textContent = savedRole + " workspace";
+  // Opening the app while still signed in: confirm the session and load saved attempts.
+  if(authToken()){
+    api("/me").then(function(u){ applyUser(u.name, u.role); safe(function(){ localStorage.setItem(ROLE_KEY, u.role) }); loadAttempts(); }).catch(function(){});
+  }else{
+    var savedRole = safe(function(){ return localStorage.getItem(ROLE_KEY) });
+    if(savedRole && !root.classList.contains("logged-out")) $("roleLabel").textContent = cap(savedRole) + " workspace";
+  }
 
   // Login orb letter cycles quietly (off when reduced motion is on).
   var letters = ["आ","क","स","म","a","s"], li = 0, loginOrb = $("loginOrbLetter");

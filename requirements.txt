@@ -1,0 +1,13 @@
+Flask>=3.0,<4
+Flask-SQLAlchemy>=3.1,<4
+Flask-JWT-Extended>=4.6,<5
+Flask-Bcrypt>=1.0.1,<2
+Flask-CORS>=4.0,<7
+python-dotenv>=1.0
+
+# Optional: only if you switch DATABASE_URL to MySQL / Amazon RDS
+# PyMySQL>=1.1
+# Optional: only if STORAGE_BACKEND=s3
+# boto3>=1.34
+# Optional: production server on Linux (not Windows)
+# gunicorn>=22
