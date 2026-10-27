@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VaaniAI | Speech Practice</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="animations.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#" aria-label="VaaniAI home"><span class="logo">व</span><span><b>vaani<span>AI</span></b><small>Speech practice space</small></span></a>
+    <div class="user-card"><div class="user-avatar" id="userAvatar">Y</div><div><strong id="userName">Yuval</strong><small id="roleLabel">Client workspace</small></div><span class="online-dot"></span></div>
+    <nav>
+      <button class="nav active" data-tab="home"><span>⌂</span> Home</button>
+      <button class="nav" data-tab="practice"><span>♫</span> Speech practice</button>
+      <button class="nav" data-tab="progress"><span>▥</span> My progress</button>
+      <button class="nav" data-tab="learn"><span>✦</span> Learn & support</button>
+    </nav>
+    <div class="side-bottom">
+      <div class="privacy"><span>♧</span><div><b>Private by design</b><small>Practice recordings stay in this demo browser.</small></div></div>
+      <button class="side-action" id="profileBtn">⚙ Profile & role</button>
+      <p class="side-foot">A practice aid, not a diagnosis.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" aria-label="Open menu">☰</button>
+      <div><p class="overline">HINDI + ENGLISH SPEECH PRACTICE</p><h1 id="pageTitle">Welcome to VaaniAI</h1></div>
+      <div class="top-right"><span class="secure"><i></i> Demo workspace</span><button class="user-chip" id="userChip"><span id="chipInitial">Y</span><span id="chipName">Yuval</span>⌄</button></div>
+    </header>
+
+    <section class="screen active" id="home">
+      <div class="welcome">
+        <div class="welcome-copy">
+          <span class="tag">YOUR VOICE, YOUR PACE</span>
+          <h2>Practice a little.<br><em>Grow with confidence.</em></h2>
+          <p>A friendly space to practise speech sounds in Hindi and Indian English, record attempts, and reflect on progress.</p>
+          <button class="button primary" data-go="practice">Start a practice session <span>→</span></button>
+        </div>
+        <div class="welcome-art" aria-hidden="true"><div class="ring ring1"></div><div class="ring ring2"></div><div class="speech-orb"><em id="orbLetter">आ</em><span>•</span></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b class="star star1">✦</b><b class="star star2">✧</b></div>
+      </div>
+      <div class="section-head"><div><p class="overline">YOUR PRACTICE SPACE</p><h2>Let’s take the next small step</h2></div><span class="date" id="today"></span></div>
+      <div class="metrics">
+        <article class="metric"><span class="metric-icon teal">♫</span><div><small>Practice attempts</small><strong id="attemptCount">0</strong><p>Saved in this browser</p></div></article>
+        <article class="metric"><span class="metric-icon violet">◉</span><div><small>Current language</small><strong id="homeLanguage">Hindi</strong><p>Change it in practice</p></div></article>
+        <article class="metric"><span class="metric-icon amber">✦</span><div><small>Practice focus</small><strong class="small-strong" id="homeFocus">Choose a sound</strong><p>One sound at a time</p></div></article>
+      </div>
+      <div class="home-grid">
+        <article class="panel next-step"><div class="panel-head"><div><p class="overline">SUGGESTED ACTIVITY</p><h3>Listen, then try saying it</h3></div><span class="arrow-bubble">↗</span></div><p>Choose a language and target sound. Listen to the example, practise at your own pace, and save your attempt.</p><button class="link-button" data-go="practice">Go to speech practice →</button></article>
+        <article class="panel encouragement"><span class="sun">☼</span><p class="overline">REMEMBER</p><h3>Progress is not a race.</h3><p>Take breaks, celebrate effort, and ask a clinician for support when needed.</p></article>
+      </div>
+      <div class="role-strip"><span>◈</span><div><b>For clinicians and caregivers</b><p>This prototype focuses on the client practice experience. Role-based assignments and clinician dashboards can be connected to your Flask API next.</p></div></div>
+    </section>
+
+    <section class="screen" id="practice">
+      <div class="page-intro"><div><p class="overline">GUIDED TRAINING · UC2–UC9</p><h2>Speech practice</h2><p>Pick a language, select a sound, listen, and record a practice attempt.</p></div><div class="intro-symbol">♫</div></div>
+      <div class="safety-note"><span>ⓘ</span><p><b>Friendly reminder:</b> this interface supports practice and reflection only. It does not diagnose a speech disorder or replace a speech-language professional.</p></div>
+      <div class="practice-layout">
+        <div class="panel practice-settings">
+          <div class="panel-title"><span class="number">01</span><div><h3>Choose your practice</h3><p>Start with a language and target sound.</p></div></div>
+          <label class="field">Practice language<select id="languageSelect"><option value="Hindi">Hindi · हिन्दी</option><option value="English">Indian English</option></select></label>
+          <label class="field">Target sound<select id="soundSelect"></select></label>
+          <div class="sound-card"><div class="sound-letter" id="soundLetter">क</div><div><span class="mini-label">TODAY’S SOUND</span><h3 id="soundName">क · ka</h3><p id="soundDescription">Listen to the example, then try saying it.</p></div></div>
+          <div class="word-list"><span class="mini-label">PRACTICE WORDS</span><div id="wordChips"></div></div>
+          <div class="practice-actions"><button class="button outline" id="listenButton">▶ Listen to example</button><button class="button primary" id="recordButton">● Start recording</button></div>
+          <p class="record-status" id="recordStatus">Microphone is off. Start recording when you’re ready.</p>
+        </div>
+        <div class="panel activity-panel">
+          <div class="panel-title"><span class="number">02</span><div><h3>Your attempt</h3><p>Record locally and review before saving.</p></div></div>
+          <div class="record-visual" id="recordVisual"><div class="mic-circle">🎙</div><div class="visual-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b id="recordVisualText">Ready when you are</b><small id="recordTimer">00:00</small></div>
+          <audio id="audioPlayback" controls hidden></audio>
+          <label class="field">How did it feel? <select id="feelingSelect"><option>Easy</option><option>Okay with practice</option><option>Challenging</option><option>Prefer not to say</option></select></label>
+          <label class="field">Optional note<textarea id="attemptNote" rows="3" placeholder="What did you notice? (optional)"></textarea></label>
+          <button class="button primary full" id="saveAttempt">Save practice attempt</button>
+          <p class="small-disclaimer">Prototype note: recordings stay in memory during this page session and are not uploaded to a server.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="progress">
+      <div class="page-intro"><div><p class="overline">YOUR JOURNEY</p><h2>My progress</h2><p>Review saved attempts and notice your practice habits over time.</p></div><div class="intro-symbol">▥</div></div>
+      <div class="progress-summary">
+        <article class="progress-card"><small>Saved attempts</small><strong id="progressTotal">0</strong><span>Across all practice sessions</span></article>
+        <article class="progress-card"><small>Languages explored</small><strong id="languageTotal">0</strong><span>Based on saved attempts</span></article>
+        <article class="progress-card"><small>Most practised sound</small><strong id="mostPracticed">—</strong><span>From your saved attempts</span></article>
+      </div>
+      <div class="panel history-panel"><div class="panel-head"><div><p class="overline">SESSION LOG</p><h3>Your recent attempts</h3></div><button class="button outline" id="exportButton">Export CSV ↓</button></div><div id="attemptHistory" class="attempt-history"></div></div>
+      <div class="role-strip"><span>ⓘ</span><div><b>About progress feedback</b><p>These counts describe saved practice activity only. They are not clinical scores, speech accuracy measurements, or a diagnosis.</p></div></div>
+    </section>
+
+    <section class="screen" id="learn">
+      <div class="page-intro"><div><p class="overline">SUPPORTIVE PRACTICE</p><h2>Learn & support</h2><p>Simple tips for a calm, positive practice routine.</p></div><div class="intro-symbol">✦</div></div>
+      <div class="feature-resource"><div class="feature-symbol">आ</div><div><span class="tag">START HERE</span><h3>Make practice feel comfortable</h3><p>Choose a quiet place, keep practice sessions short, and encourage trying without pressure. Every attempt is useful information.</p></div></div>
+      <div class="resource-grid">
+        <article class="resource-card"><div class="resource-icon teal">耳</div><span class="mini-label">LISTENING</span><h3>Listen before speaking</h3><p>Listen to the example sound carefully. Repeat it at a comfortable pace and take breaks when needed.</p><button class="link-button learn-more" data-topic="listening">Read tips →</button></article>
+        <article class="resource-card"><div class="resource-icon violet">♫</div><span class="mini-label">SPEAKING</span><h3>Practise without pressure</h3><p>Try a sound in a word, then return to it later. Avoid treating one difficult attempt as failure.</p><button class="link-button learn-more" data-topic="speaking">Read tips →</button></article>
+        <article class="resource-card"><div class="resource-icon amber">♡</div><span class="mini-label">CAREGIVERS</span><h3>Encourage communication</h3><p>Listen patiently, allow time to respond, and praise effort rather than demanding perfect repetition.</p><button class="link-button learn-more" data-topic="caregiver">Read tips →</button></article>
+        <article class="resource-card"><div class="resource-icon blue">♧</div><span class="mini-label">CLINICIANS</span><h3>Use professional guidance</h3><p>Practice targets and interpretations should be guided by a qualified speech-language professional.</p><button class="link-button learn-more" data-topic="clinician">Read tips →</button></article>
+      </div>
+      <div class="safety-note"><span>ⓘ</span><p>VaaniAI is designed as a practice aid. Do not use this demo to make diagnostic decisions. Seek a qualified professional for concerns about speech development.</p></div>
+    </section>
+
+    <footer><span>vaaniAI · G17 project prototype</span><span>Hindi + Indian English · Speech practice, not diagnosis</span></footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="modal-shade" id="modalShade" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><button class="modal-x" id="modalX" aria-label="Close">×</button><p class="overline">PRACTICE GUIDANCE</p><h2 id="modalTitle">Helpful tips</h2><div id="modalContent"></div><button class="button primary" id="modalOkay">Got it</button></div></div>
+<script src="app.js"></script>
+</body>
+</html>
