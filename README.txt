@@ -8,6 +8,7 @@ Built from Presentation II and Presentation III:
 - Microphone recording and playback
 - Save practice notes and feelings
 - Progress summary and CSV export
+- Login / create account screen (demo only, built into index.html) with Log out in the sidebar
 - Learning/support tips
 - Child-friendly dark UI and responsive navigation
 - Motion layer: animated page transitions, staggered reveals, hero orb, live microphone level bars,
@@ -15,10 +16,10 @@ Built from Presentation II and Presentation III:
   (all motion switches off automatically when the device's "reduce motion" setting is on)
 
 Files:
-- index.html
-- styles.css
+- index.html (includes the login screen)
+- styles.css (includes login styles)
 - animations.css (all decorative motion; remove its <link> in index.html to turn animation off)
-- app.js
+- app.js (includes login logic; set API_BASE inside it when the Flask API is ready)
 
 Run:
 1. Extract the ZIP.

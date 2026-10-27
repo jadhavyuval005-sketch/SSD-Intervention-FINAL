@@ -208,3 +208,143 @@ setInterval(()=>{
 // It does not yet call Flask, SQLAlchemy, JWT endpoints, Amazon S3, or an LLM.
 // Once the real API routes are confirmed, replace getAttempts/setAttempts with authenticated fetch() requests.
 // Audio is recorded in the browser only and is not uploaded to a server.
+
+// ===== Login (merged from login.js) =====
+// Demo sign-in only: nothing is verified or sent to a server.
+(function(){
+  "use strict";
+
+  // Set API_BASE to your Flask URL (e.g. "http://localhost:5000/api") and replace the
+  // commented fetch() below with your backend's real routes, field names and JWT handling.
+  var API_BASE = "";
+  var USER_KEY = "vaaniai_demo_user";   // same key the profile prompt above uses
+  var ROLE_KEY = "vaaniai_demo_role";
+  var AUTH_KEY = "vaaniai_demo_signed_in";
+  var root = document.documentElement;
+  var mode = "login";
+
+  function safe(fn){ try{ return fn() }catch(e){ return null } }
+
+  function applyUser(name, role){
+    var n = name || "Guest";
+    $("userName").textContent = n;
+    $("chipName").textContent = n;
+    $("userAvatar").textContent = n.charAt(0).toUpperCase();
+    $("chipInitial").textContent = n.charAt(0).toUpperCase();
+    if(role) $("roleLabel").textContent = role + " workspace";
+  }
+
+  function setMode(next){
+    mode = next;
+    var reg = next === "register";
+    $("tabLogin").setAttribute("aria-selected", String(!reg));
+    $("tabRegister").setAttribute("aria-selected", String(reg));
+    $("nameField").hidden = !reg;
+    $("formTitle").textContent = reg ? "Create your account" : "Sign in";
+    $("formSub").textContent = reg ? "Set up a profile to save your practice attempts." : "Use your VaaniAI account to open your practice space.";
+    $("submitBtn").innerHTML = (reg ? "Create account" : "Sign in") + " <span>→</span>";
+    $("password").setAttribute("autocomplete", reg ? "new-password" : "current-password");
+    clearErrors();
+  }
+
+  function clearErrors(){
+    ["nameError","emailError","passwordError"].forEach(function(id){ $(id).textContent = "" });
+    ["fullName","email","password"].forEach(function(id){ $(id).removeAttribute("aria-invalid") });
+  }
+
+  function fail(inputId, errId, msg){
+    $(errId).textContent = msg;
+    $(inputId).setAttribute("aria-invalid", "true");
+  }
+
+  function validate(){
+    clearErrors();
+    var ok = true;
+    var name = $("fullName").value.trim();
+    var email = $("email").value.trim();
+    var pw = $("password").value;
+    if(mode === "register" && !name){ fail("fullName","nameError","Enter your name."); ok = false; }
+    if(!email){ fail("email","emailError","Enter your email address."); ok = false; }
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("email","emailError","Enter a valid email, like name@example.com."); ok = false; }
+    if(pw.length < 6){ fail("password","passwordError","Use at least 6 characters."); ok = false; }
+    return ok;
+  }
+
+  function nameFromEmail(email){
+    var base = email.split("@")[0].replace(/[._-]+/g, " ").trim();
+    return base ? base.replace(/\b\w/g, function(c){ return c.toUpperCase() }).slice(0,35) : "Guest";
+  }
+
+  function signIn(displayName, role){
+    var store = $("remember").checked ? localStorage : sessionStorage;
+    safe(function(){ localStorage.setItem(USER_KEY, displayName) });
+    safe(function(){ localStorage.setItem(ROLE_KEY, role) });
+    safe(function(){ store.setItem(AUTH_KEY, "1") });
+    applyUser(displayName, role);
+    $("loginForm").reset();
+    setMode("login");
+    root.classList.remove("logged-out");
+    goTab("home");
+    window.scrollTo(0, 0);
+    notify("Welcome, " + displayName + ".");
+  }
+
+  function signOut(){
+    safe(function(){ localStorage.removeItem(AUTH_KEY) });
+    safe(function(){ sessionStorage.removeItem(AUTH_KEY) });
+    $("sidebar").classList.remove("open");
+    root.classList.add("logged-out");
+    window.scrollTo(0, 0);
+    notify("You have been logged out.");
+  }
+
+  $("tabLogin").addEventListener("click", function(){ setMode("login") });
+  $("tabRegister").addEventListener("click", function(){ setMode("register") });
+
+  $("pwToggle").addEventListener("click", function(){
+    var input = $("password");
+    var show = input.type === "password";
+    input.type = show ? "text" : "password";
+    this.textContent = show ? "Hide" : "Show";
+    this.setAttribute("aria-pressed", String(show));
+    this.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  });
+
+  $("forgotBtn").addEventListener("click", function(){
+    notify("Password reset needs the backend. Not connected in this demo.");
+  });
+
+  $("guestBtn").addEventListener("click", function(){ signIn("Guest", $("role").value) });
+
+  $("loginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!validate()) return;
+    var email = $("email").value.trim();
+    var role = $("role").value;
+    var name = mode === "register" ? $("fullName").value.trim() : nameFromEmail(email);
+    if(API_BASE){
+      /* fetch(API_BASE + (mode === "register" ? "/register" : "/login"), {
+           method: "POST",
+           headers: {"Content-Type":"application/json"},
+           body: JSON.stringify({ email: email, password: $("password").value, name: name, role: role })
+         }).then(r => r.json()).then(data => { store data.access_token; signIn(name, role); }); */
+      notify("API_BASE is set but the request code is not written yet.");
+      return;
+    }
+    signIn(name, role);
+  });
+
+  $("logoutBtn").addEventListener("click", signOut);
+
+  // Restore the saved role label when the app opens already signed in.
+  var savedRole = safe(function(){ return localStorage.getItem(ROLE_KEY) });
+  if(savedRole) $("roleLabel").textContent = savedRole + " workspace";
+
+  // Login orb letter cycles quietly (off when reduced motion is on).
+  var letters = ["आ","क","स","म","a","s"], li = 0, loginOrb = $("loginOrbLetter");
+  setInterval(function(){
+    if(prefersReduced() || document.hidden || !root.classList.contains("logged-out")) return;
+    loginOrb.classList.add("out");
+    setTimeout(function(){ li = (li + 1) % letters.length; loginOrb.textContent = letters[li]; loginOrb.classList.remove("out") }, 350);
+  }, 3200);
+})();
