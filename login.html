@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in | VaaniAI</title>
+  <!-- Same two stylesheets as index.html: gives the identical dark background, ambient glow, fonts and tokens -->
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="animations.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+<div class="login-shell">
+  <div class="login-card">
+
+    <section class="login-hero" aria-hidden="false">
+      <a class="brand" href="index.html" aria-label="VaaniAI home"><span class="logo">व</span><span><b>vaani<span>AI</span></b><small>Speech practice space</small></span></a>
+
+      <div class="hero-art" aria-hidden="true">
+        <div class="ring ring1"></div><div class="ring ring2"></div>
+        <div class="speech-orb"><em id="orbLetter">आ</em><span>•</span></div>
+        <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <b class="star star1">✦</b><b class="star star2">✧</b>
+      </div>
+
+      <div>
+        <h1>Welcome back.<br><em>Your voice, your pace.</em></h1>
+        <p>Sign in to continue your Hindi and Indian English speech practice and see your saved attempts.</p>
+      </div>
+    </section>
+
+    <section class="login-form-wrap">
+      <h2 id="formTitle">Sign in</h2>
+      <p id="formSub">Use your VaaniAI account to open your practice space.</p>
+
+      <div class="mode-switch" role="tablist" aria-label="Account mode">
+        <button type="button" role="tab" id="tabLogin" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="tabRegister" aria-selected="false">Create account</button>
+      </div>
+
+      <form class="login-form" id="loginForm" novalidate>
+        <label class="field only-register" id="nameField" hidden>Full name
+          <input type="text" id="fullName" autocomplete="name" placeholder="Your name" maxlength="35">
+          <span class="field-error" id="nameError"></span>
+        </label>
+
+        <label class="field">Email
+          <input type="email" id="email" autocomplete="email" placeholder="you@example.com" required>
+          <span class="field-error" id="emailError"></span>
+        </label>
+
+        <label class="field">Password
+          <span class="pw-row">
+            <input type="password" id="password" autocomplete="current-password" placeholder="At least 6 characters" required>
+            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false">Show</button>
+          </span>
+          <span class="field-error" id="passwordError"></span>
+        </label>
+
+        <label class="field">I am a
+          <select id="role">
+            <option value="Client">Client</option>
+            <option value="Clinician">Clinician</option>
+            <option value="Administrator">Administrator</option>
+          </select>
+        </label>
+
+        <div class="form-row">
+          <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in</label>
+          <button type="button" class="link-button" id="forgotBtn">Forgot password?</button>
+        </div>
+
+        <button class="button primary full" type="submit" id="submitBtn">Sign in <span>→</span></button>
+        <div class="divider">or</div>
+        <button class="button outline full" type="button" id="guestBtn">Continue as guest</button>
+      </form>
+
+      <div class="login-note">
+        <span>ⓘ</span>
+        <p><b>Demo sign-in.</b> This page is not connected to the Flask API yet, so no password is checked and nothing is sent to a server. Your name and role are saved in this browser only.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="login.js"></script>
+</body>
+</html>
