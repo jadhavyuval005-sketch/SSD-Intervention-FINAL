@@ -10,6 +10,9 @@ Built from Presentation II and Presentation III:
 - Progress summary and CSV export
 - Login / create account screen (demo only, built into index.html) with Log out in the sidebar
 - Learning/support tips
+- Tongue twisters page: side-view mouth diagrams that animate the tongue position for 10 sounds (क ग, ट ड, त द, स, श, च, ल, र, th, प ब म),
+  plus Hindi and English tongue twisters with Slow / Normal / Fast browser text-to-speech
+- Profile dropdown (top right): edit name & role, My progress, Tongue twisters, Speech practice, Learn & support, Log out
 - Child-friendly dark UI and responsive navigation
 - Motion layer: animated page transitions, staggered reveals, hero orb, live microphone level bars,
   count-up numbers, hover effects and a small celebration when an attempt is saved
@@ -19,13 +22,18 @@ Files:
 - index.html (includes the login screen)
 - styles.css (includes login styles)
 - animations.css (all decorative motion; remove its <link> in index.html to turn animation off)
-- app.js (includes login logic; set API_BASE inside it when the Flask API is ready)
+- app.js (includes login logic, profile dropdown and the tongue-twister data/diagrams; set API_BASE inside it when the Flask API is ready)
 
 Run:
 1. Extract the ZIP.
 2. Open the extracted folder in VS Code.
 3. Install/use Live Server and open index.html.
 4. Microphone recording generally requires localhost or HTTPS and browser permission.
+
+Editing the tongue twisters:
+- In app.js, the TWISTERS array holds the phrases and SOUNDS holds each mouth diagram (steps, tip, example words).
+- Tongue shapes live in the TONGUE object (28 numbers each, same template so they can morph).
+- Hindi audio needs a Hindi voice installed in the browser/OS.
 
 Important project scope:
 - This is a frontend prototype, not a completed clinical tool.

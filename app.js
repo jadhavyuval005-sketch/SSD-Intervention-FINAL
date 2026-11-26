@@ -1,22 +1,3 @@
-// ---- Backend connection ----
-// Address of the Flask API (see backend/README.md). Set to "" to run without a backend (guest mode only).
-const API_BASE = "http://localhost:5000/api";
-const TOKEN_KEY = "vaaniai_token";
-function authToken(){try{return localStorage.getItem(TOKEN_KEY)||sessionStorage.getItem(TOKEN_KEY)}catch{return null}}
-async function api(path,{method="GET",json,body,auth=true}={}){
-  const headers={},token=auth?authToken():null;
-  if(json!==undefined)headers["Content-Type"]="application/json";
-  if(token)headers.Authorization="Bearer "+token;
-  let res;
-  try{res=await fetch(API_BASE+path,{method,headers,body:json!==undefined?JSON.stringify(json):body})}
-  catch{throw new Error("Cannot reach the server. Check that the backend is running.")}
-  let data=null;try{data=await res.json()}catch{}
-  if(!res.ok){
-    if(res.status===401&&token)document.dispatchEvent(new Event("vaani:session-expired"));
-    const err=new Error((data&&data.error)||"Something went wrong ("+res.status+").");err.status=res.status;throw err;
-  }
-  return data;
-}
 const KEY = "vaaniai_speech_attempts_v1";
 const soundSets = {
   Hindi: [
@@ -99,18 +80,11 @@ function stopMeter(){
   v.querySelectorAll(".visual-bars i").forEach(b=>b.style.height="");
 }
 
-let attemptsCache=null;
-function getAttempts(){if(attemptsCache===null){try{attemptsCache=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{attemptsCache=[]}}return attemptsCache}
-function setAttempts(items){attemptsCache=items;if(!authToken())localStorage.setItem(KEY,JSON.stringify(items))}
-function fromServer(a){return{id:a.id,date:new Date(a.created_at).toLocaleString(),language:a.language,sound:a.sound,words:a.words,feeling:a.feeling,note:a.note||"",duration:a.has_audio?formatTime(a.duration_seconds||0):"No audio"}}
-async function loadAttempts(){
-  if(!authToken()){attemptsCache=null;updateHome();return}
-  try{attemptsCache=(await api("/attempts")).map(fromServer)}catch(err){if(err.status!==401)notify(err.message)}
-  updateHome();if($("progress").classList.contains("active"))renderProgress();
-}
+function getAttempts(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return []}}
+function setAttempts(items){localStorage.setItem(KEY,JSON.stringify(items))}
 function notify(message){const t=$("toast");t.textContent=message;t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2800)}
 function escapeHTML(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function goTab(name){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===name));document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));const titles={home:"Welcome to VaaniAI",practice:"Speech practice",progress:"My progress",learn:"Learn & support"};$("pageTitle").textContent=titles[name]||"VaaniAI";replay($("pageTitle"),"swap");$("sidebar").classList.remove("open");if(name==="progress")renderProgress();if(name==="home")updateHome();window.scrollTo({top:0,behavior:"smooth"})}
+function goTab(name){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===name));document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));const titles={home:"Welcome to VaaniAI",practice:"Speech practice",progress:"My progress",learn:"Learn & support",twisters:"Tongue twisters"};$("pageTitle").textContent=titles[name]||"VaaniAI";replay($("pageTitle"),"swap");$("sidebar").classList.remove("open");closeProfileMenu();if("speechSynthesis" in window)window.speechSynthesis.cancel();if(name==="progress")renderProgress();if(name==="home")updateHome();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>goTab(b.dataset.tab)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>goTab(b.dataset.go)));
 $("menuButton").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
@@ -173,24 +147,13 @@ $("recordButton").addEventListener("click",()=>{
   if(recorder&&recorder.state==="recording"){recorder.stop();return}
   startRecording();
 });
-$("saveAttempt").addEventListener("click",async()=>{
+$("saveAttempt").addEventListener("click",()=>{
   if(recorder&&recorder.state==="recording"){notify("Stop the recording before saving.");return}
-  const s=currentSound(),button=$("saveAttempt");
-  if(authToken()){
-    const fd=new FormData();
-    fd.append("language",$("languageSelect").value);fd.append("sound",s.name);fd.append("words",s.words.join(", "));
-    fd.append("feeling",$("feelingSelect").value);fd.append("note",$("attemptNote").value.trim());fd.append("duration_seconds",String(recordingBlob?elapsed:0));
-    if(recordingBlob)fd.append("audio",recordingBlob,"attempt");
-    button.disabled=true;
-    try{const saved=await api("/attempts",{method:"POST",body:fd});getAttempts().unshift(fromServer(saved))}
-    catch(err){notify(err.message);button.disabled=false;return}
-    button.disabled=false;
-  }else{
-    const attempt={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),date:new Date().toLocaleString(),language:$("languageSelect").value,sound:s.name,words:s.words.join(", "),feeling:$("feelingSelect").value,note:$("attemptNote").value.trim(),duration:recordingBlob?formatTime(elapsed):"No audio"};
-    const all=getAttempts();all.unshift(attempt);setAttempts(all);
-  }
+  const s=currentSound();
+  const attempt={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),date:new Date().toLocaleString(),language:$("languageSelect").value,sound:s.name,words:s.words.join(", "),feeling:$("feelingSelect").value,note:$("attemptNote").value.trim(),duration:recordingBlob?formatTime(elapsed):"No audio"};
+  const all=getAttempts();all.unshift(attempt);setAttempts(all);
   $("attemptNote").value="";recordingBlob=null;$("audioPlayback").removeAttribute("src");$("audioPlayback").hidden=true;$("recordTimer").textContent="00:00";elapsed=0;
-  updateHome();notify(authToken()?"Practice attempt saved to your account.":"Practice attempt saved on this device.");burst($("saveAttempt"));goTab("progress");
+  updateHome();notify("Practice attempt saved on this device.");burst($("saveAttempt"));goTab("progress");
 });
 function updateHome(){const a=getAttempts();countTo($("attemptCount"),a.length);$("homeLanguage").textContent=a[0]?.language||$("languageSelect").value;$("homeFocus").textContent=a[0]?.sound||currentSound().name}
 function renderProgress(){
@@ -212,8 +175,8 @@ function openTopic(key){const t=topicTips[key];if(!t)return;$("modalTitle").text
 document.querySelectorAll("[data-topic]").forEach(b=>b.addEventListener("click",()=>openTopic(b.dataset.topic)));
 function closeModal(){shade.hidden=true}
 $("modalX").addEventListener("click",closeModal);$("modalOkay").addEventListener("click",closeModal);shade.addEventListener("click",e=>{if(e.target===shade)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-function profilePrompt(){if(authToken()){notify("Your name and role are set by your account.");return}const name=prompt("Enter a display name for this local demo:",$("userName").textContent);if(name===null)return;const cleaned=name.trim().slice(0,35)||"Guest";$("userName").textContent=cleaned;$("chipName").textContent=cleaned;$("userAvatar").textContent=cleaned.charAt(0).toUpperCase();$("chipInitial").textContent=cleaned.charAt(0).toUpperCase();localStorage.setItem("vaaniai_demo_user",cleaned);const role=prompt("Choose demo role: Client, Clinician, or Administrator","Client");if(role){$("roleLabel").textContent=role+" workspace";notify("Demo profile updated. Backend role permissions are not connected.");}}
-$("profileBtn").addEventListener("click",profilePrompt);$("userChip").addEventListener("click",profilePrompt);
+function profilePrompt(){const name=prompt("Enter a display name for this local demo:",$("userName").textContent);if(name===null)return;const cleaned=name.trim().slice(0,35)||"Guest";$("userName").textContent=cleaned;$("chipName").textContent=cleaned;$("userAvatar").textContent=cleaned.charAt(0).toUpperCase();$("chipInitial").textContent=cleaned.charAt(0).toUpperCase();localStorage.setItem("vaaniai_demo_user",cleaned);const role=prompt("Choose demo role: Client, Clinician, or Administrator","Client");if(role){$("roleLabel").textContent=role+" workspace";notify("Demo profile updated. Backend role permissions are not connected.");}}
+$("profileBtn").addEventListener("click",profilePrompt);
 const savedName=localStorage.getItem("vaaniai_demo_user")||"Yuval";$("userName").textContent=savedName;$("chipName").textContent=savedName;$("userAvatar").textContent=savedName.charAt(0).toUpperCase();$("chipInitial").textContent=savedName.charAt(0).toUpperCase();
 $("today").textContent=new Date().toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
 fillSounds();updateHome();
@@ -246,19 +209,21 @@ setInterval(()=>{
 // Once the real API routes are confirmed, replace getAttempts/setAttempts with authenticated fetch() requests.
 // Audio is recorded in the browser only and is not uploaded to a server.
 
-// ===== Login / account =====
-// Signed-in users talk to the Flask API. "Continue as guest" works without a server and keeps data in this browser only.
+// ===== Login (merged from login.js) =====
+// Demo sign-in only: nothing is verified or sent to a server.
 (function(){
   "use strict";
 
-  var USER_KEY = "vaaniai_demo_user";
+  // Set API_BASE to your Flask URL (e.g. "http://localhost:5000/api") and replace the
+  // commented fetch() below with your backend's real routes, field names and JWT handling.
+  var API_BASE = "";
+  var USER_KEY = "vaaniai_demo_user";   // same key the profile prompt above uses
   var ROLE_KEY = "vaaniai_demo_role";
   var AUTH_KEY = "vaaniai_demo_signed_in";
   var root = document.documentElement;
   var mode = "login";
 
   function safe(fn){ try{ return fn() }catch(e){ return null } }
-  function cap(role){ return role ? role.charAt(0).toUpperCase() + role.slice(1) : role }
 
   function applyUser(name, role){
     var n = name || "Guest";
@@ -266,7 +231,7 @@ setInterval(()=>{
     $("chipName").textContent = n;
     $("userAvatar").textContent = n.charAt(0).toUpperCase();
     $("chipInitial").textContent = n.charAt(0).toUpperCase();
-    if(role) $("roleLabel").textContent = cap(role) + " workspace";
+    if(role) $("roleLabel").textContent = role + " workspace";
   }
 
   function setMode(next){
@@ -275,7 +240,6 @@ setInterval(()=>{
     $("tabLogin").setAttribute("aria-selected", String(!reg));
     $("tabRegister").setAttribute("aria-selected", String(reg));
     $("nameField").hidden = !reg;
-    $("roleField").hidden = !reg;
     $("formTitle").textContent = reg ? "Create your account" : "Sign in";
     $("formSub").textContent = reg ? "Set up a profile to save your practice attempts." : "Use your VaaniAI account to open your practice space.";
     $("submitBtn").innerHTML = (reg ? "Create account" : "Sign in") + " <span>→</span>";
@@ -284,7 +248,7 @@ setInterval(()=>{
   }
 
   function clearErrors(){
-    ["nameError","emailError","passwordError","formError"].forEach(function(id){ $(id).textContent = "" });
+    ["nameError","emailError","passwordError"].forEach(function(id){ $(id).textContent = "" });
     ["fullName","email","password"].forEach(function(id){ $(id).removeAttribute("aria-invalid") });
   }
 
@@ -302,46 +266,36 @@ setInterval(()=>{
     if(mode === "register" && !name){ fail("fullName","nameError","Enter your name."); ok = false; }
     if(!email){ fail("email","emailError","Enter your email address."); ok = false; }
     else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("email","emailError","Enter a valid email, like name@example.com."); ok = false; }
-    if(pw.length < 8){ fail("password","passwordError","Use at least 8 characters."); ok = false; }
+    if(pw.length < 6){ fail("password","passwordError","Use at least 6 characters."); ok = false; }
     return ok;
   }
 
-  function showSignedIn(displayName, role){
+  function nameFromEmail(email){
+    var base = email.split("@")[0].replace(/[._-]+/g, " ").trim();
+    return base ? base.replace(/\b\w/g, function(c){ return c.toUpperCase() }).slice(0,35) : "Guest";
+  }
+
+  function signIn(displayName, role){
+    var store = $("remember").checked ? localStorage : sessionStorage;
+    safe(function(){ localStorage.setItem(USER_KEY, displayName) });
+    safe(function(){ localStorage.setItem(ROLE_KEY, role) });
+    safe(function(){ store.setItem(AUTH_KEY, "1") });
     applyUser(displayName, role);
     $("loginForm").reset();
     setMode("login");
     root.classList.remove("logged-out");
     goTab("home");
-    loadAttempts();
+    window.scrollTo(0, 0);
     notify("Welcome, " + displayName + ".");
   }
 
-  // Server account: keep the token (localStorage if "keep me signed in", else this tab only).
-  function signInAccount(data){
-    var store = $("remember").checked ? localStorage : sessionStorage;
-    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
-    safe(function(){ store.setItem(TOKEN_KEY, data.access_token); store.setItem(AUTH_KEY, "1") });
-    safe(function(){ localStorage.setItem(USER_KEY, data.user.name); localStorage.setItem(ROLE_KEY, data.user.role) });
-    showSignedIn(data.user.name, data.user.role);
-  }
-
-  // Guest: no server, no token.
-  function signInGuest(){
-    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
-    safe(function(){ localStorage.setItem(USER_KEY, "Guest"); localStorage.setItem(ROLE_KEY, "client"); sessionStorage.setItem(AUTH_KEY, "1") });
-    attemptsCache = null;
-    showSignedIn("Guest", "client");
-  }
-
-  function signOut(message){
-    if(authToken()){ api("/logout", {method:"POST"}).catch(function(){}) }   // revoke the token on the server (best effort)
-    safe(function(){ localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY) });
-    safe(function(){ localStorage.removeItem(AUTH_KEY); sessionStorage.removeItem(AUTH_KEY) });
-    attemptsCache = null;
+  function signOut(){
+    safe(function(){ localStorage.removeItem(AUTH_KEY) });
+    safe(function(){ sessionStorage.removeItem(AUTH_KEY) });
     $("sidebar").classList.remove("open");
     root.classList.add("logged-out");
     window.scrollTo(0, 0);
-    notify(message || "You have been logged out.");
+    notify("You have been logged out.");
   }
 
   $("tabLogin").addEventListener("click", function(){ setMode("login") });
@@ -357,38 +311,34 @@ setInterval(()=>{
   });
 
   $("forgotBtn").addEventListener("click", function(){
-    notify("Password reset is not available yet. Ask your administrator to help.");
+    notify("Password reset needs the backend. Not connected in this demo.");
   });
 
-  $("guestBtn").addEventListener("click", signInGuest);
+  $("guestBtn").addEventListener("click", function(){ signIn("Guest", $("role").value) });
 
-  $("loginForm").addEventListener("submit", async function(e){
+  $("loginForm").addEventListener("submit", function(e){
     e.preventDefault();
     if(!validate()) return;
-    var btn = $("submitBtn"), label = btn.innerHTML;
-    var body = {email: $("email").value.trim(), password: $("password").value};
-    if(mode === "register"){ body.name = $("fullName").value.trim(); body.role = $("role").value.toLowerCase(); }
-    btn.disabled = true; btn.textContent = mode === "register" ? "Creating account…" : "Signing in…";
-    try{
-      var data = await api(mode === "register" ? "/register" : "/login", {method:"POST", json:body, auth:false});
-      signInAccount(data);
-    }catch(err){
-      $("formError").textContent = err.message;
-    }finally{
-      btn.disabled = false; btn.innerHTML = label;
+    var email = $("email").value.trim();
+    var role = $("role").value;
+    var name = mode === "register" ? $("fullName").value.trim() : nameFromEmail(email);
+    if(API_BASE){
+      /* fetch(API_BASE + (mode === "register" ? "/register" : "/login"), {
+           method: "POST",
+           headers: {"Content-Type":"application/json"},
+           body: JSON.stringify({ email: email, password: $("password").value, name: name, role: role })
+         }).then(r => r.json()).then(data => { store data.access_token; signIn(name, role); }); */
+      notify("API_BASE is set but the request code is not written yet.");
+      return;
     }
+    signIn(name, role);
   });
 
-  $("logoutBtn").addEventListener("click", function(){ signOut(); });
-  document.addEventListener("vaani:session-expired", function(){ if(!root.classList.contains("logged-out")) signOut("Your session expired. Please sign in again."); });
+  $("logoutBtn").addEventListener("click", signOut);
 
-  // Opening the app while still signed in: confirm the session and load saved attempts.
-  if(authToken()){
-    api("/me").then(function(u){ applyUser(u.name, u.role); safe(function(){ localStorage.setItem(ROLE_KEY, u.role) }); loadAttempts(); }).catch(function(){});
-  }else{
-    var savedRole = safe(function(){ return localStorage.getItem(ROLE_KEY) });
-    if(savedRole && !root.classList.contains("logged-out")) $("roleLabel").textContent = cap(savedRole) + " workspace";
-  }
+  // Restore the saved role label when the app opens already signed in.
+  var savedRole = safe(function(){ return localStorage.getItem(ROLE_KEY) });
+  if(savedRole) $("roleLabel").textContent = savedRole + " workspace";
 
   // Login orb letter cycles quietly (off when reduced motion is on).
   var letters = ["आ","क","स","म","a","s"], li = 0, loginOrb = $("loginOrbLetter");
@@ -397,4 +347,197 @@ setInterval(()=>{
     loginOrb.classList.add("out");
     setTimeout(function(){ li = (li + 1) % letters.length; loginOrb.textContent = letters[li]; loginOrb.classList.remove("out") }, 350);
   }, 3200);
+})();
+
+
+// ===== Profile dropdown =====
+function closeProfileMenu(){
+  const m=$("profileMenu"),c=$("userChip");
+  if(!m||m.hidden)return;
+  m.hidden=true;c.setAttribute("aria-expanded","false");
+}
+function openProfileMenu(){
+  $("pmName").textContent=$("userName").textContent;
+  $("pmRole").textContent=$("roleLabel").textContent;
+  $("pmAvatar").textContent=$("userAvatar").textContent;
+  $("profileMenu").hidden=false;$("userChip").setAttribute("aria-expanded","true");
+  $("profileMenu").querySelector(".pm-item")?.focus();
+}
+$("userChip").addEventListener("click",e=>{e.stopPropagation();$("profileMenu").hidden?openProfileMenu():closeProfileMenu()});
+document.addEventListener("click",e=>{if(!e.target.closest?.(".profile-wrap"))closeProfileMenu()});
+document.addEventListener("keydown",e=>{
+  const m=$("profileMenu");if(m.hidden)return;
+  if(e.key==="Escape"){closeProfileMenu();$("userChip").focus();return}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();
+    const items=[...m.querySelectorAll(".pm-item")],i=items.indexOf(document.activeElement);
+    items[(i+(e.key==="ArrowDown"?1:-1)+items.length)%items.length].focus();
+  }
+});
+$("pmEdit").addEventListener("click",()=>{closeProfileMenu();profilePrompt()});
+$("pmLogout").addEventListener("click",()=>{closeProfileMenu();$("logoutBtn").click()});
+document.querySelectorAll("#profileMenu [data-go]").forEach(b=>b.addEventListener("click",closeProfileMenu));
+
+// ===== Tongue twisters + mouth guide =====
+// Each tongue shape is 28 numbers (same template for every sound) so the tongue can glide smoothly between them.
+// Layout: tipBottom(2) tipFront(2) | curve1: c1 c2 end | curve2: c1 c2 end | curve3: c1 c2 end | rootBottom(2) | curve4: c1 c2
+const TONGUE={
+  rest:   [188,134, 186,122, 178,116,160,110,140,111, 122,112,110,116,100,122,  80,132,66,150,58,172, 58,176, 108,180,160,166],
+  velar:  [188,134, 186,124, 170,124,150,126,132,122, 112,116,100,90,88,60,     74,62,64,86,58,112,   58,176, 108,180,160,166],
+  retro:  [188,134, 176,112, 176,98,170,72,146,60,    136,62,128,74,130,92,      122,112,70,138,58,172, 58,176, 108,180,160,166],
+  dental: [188,134, 184,106, 186,100,186,94,182,92,   160,98,132,112,106,120,    82,130,66,150,58,172,  58,176, 108,180,160,166],
+  groove: [188,134, 184,100, 180,92,172,90,160,96,    142,106,118,112,100,122,   80,132,66,150,58,172,  58,176, 108,180,160,166],
+  sh:     [188,134, 178,108, 176,96,168,86,156,84,    138,86,122,106,102,118,    82,130,66,150,58,172,  58,176, 108,180,160,166],
+  palatal:[188,134, 180,112, 178,98,168,78,152,62,    140,64,126,88,112,112,     88,126,66,148,58,172,  58,176, 108,180,160,166],
+  lateral:[188,134, 180,100, 178,88,174,78,171,71,    162,92,152,114,130,114,    102,114,74,138,58,172, 58,176, 108,180,160,166],
+  curl:   [188,134, 176,114, 176,104,166,84,150,80,   138,78,128,92,124,106,     110,122,72,140,58,172, 58,176, 108,180,160,166],
+  th:     [188,134, 192,114, 200,108,201,100,186,100, 164,104,134,112,104,122,   80,132,66,150,58,172,  58,176, 108,180,160,166]
+};
+const SOUNDS=[
+  {id:"k",chip:"क ग · k g",tongue:"velar",lips:{u:84,l:118,s:0},dot:[86,58],air:null,
+   kicker:"BACK OF THE TONGUE",title:"क ग · k g",
+   steps:["Rest the tip of your tongue low, behind your bottom front teeth.","Lift the back of your tongue up to touch the soft roof of your mouth.","Let it drop quickly. For क and k, add a small puff of air."],
+   tip:"Try a tiny “kuh” and notice the back of your tongue rising and falling.",say:[{t:"कमल",l:"hi-IN"},{t:"key",l:"en-IN"}]},
+  {id:"retro",chip:"ट ड",tongue:"retro",lips:{u:84,l:118,s:0},dot:[146,55],air:null,
+   kicker:"CURLED TIP · HINDI",title:"ट ड (retroflex)",
+   steps:["Curl the tip of your tongue up and slightly back.","Touch the hard roof of your mouth with the underside of the tip.","Flick it forward as you let the sound out."],
+   tip:"Hindi ट ड use this curled position. English t and d sit further forward, on the ridge.",say:[{t:"टमाटर",l:"hi-IN"},{t:"डमरू",l:"hi-IN"}]},
+  {id:"dental",chip:"त द",tongue:"dental",lips:{u:84,l:118,s:0},dot:[187,92],air:null,
+   kicker:"TIP ON THE TEETH · HINDI",title:"त द (dental)",
+   steps:["Keep your tongue flat and relaxed.","Press the tip lightly against the back of your upper front teeth.","Release with a quick, soft tap."],
+   tip:"For थ ध, let a little breath out as you release.",say:[{t:"तारा",l:"hi-IN"},{t:"दादा",l:"hi-IN"}]},
+  {id:"s",chip:"स · s",tongue:"groove",lips:{u:86,l:114,s:0},dot:null,air:"M150,86 C172,84 188,96 214,101",
+   kicker:"A NARROW GAP",title:"स · s",
+   steps:["Raise the front of your tongue close to the ridge behind your top teeth, without touching it.","Keep a narrow groove down the middle and your teeth almost together.","Push air gently through, like a quiet hiss."],
+   tip:"If it sounds like “th”, pull the tongue tip back a little from the teeth.",say:[{t:"सूरज",l:"hi-IN"},{t:"sun",l:"en-IN"}]},
+  {id:"sh",chip:"श · sh",tongue:"sh",lips:{u:90,l:112,s:6},dot:null,air:"M138,74 C170,76 192,96 216,101",
+   kicker:"PULLED BACK + ROUND LIPS",title:"श · sh",
+   steps:["Pull your tongue back a little and lift the front toward the roof of your mouth.","Round your lips so they come slightly forward.","Let air flow in a soft, wide “shhh”."],
+   tip:"Compare s and sh: for sh the tongue is further back and the lips are rounder.",say:[{t:"शेर",l:"hi-IN"},{t:"shell",l:"en-IN"}]},
+  {id:"ch",chip:"च · ch",tongue:"palatal",lips:{u:88,l:112,s:4},dot:[150,58],air:null,
+   kicker:"FRONT OF TONGUE TO THE ROOF",title:"च · ch",
+   steps:["Lift the front of your tongue to touch the hard roof of your mouth.","Hold for a moment, then release with a small burst of air.","Think of a quick “t” sliding into “sh”."],
+   tip:"Hindi च is soft. English “ch” in chair is a little stronger.",say:[{t:"चाचा",l:"hi-IN"},{t:"chair",l:"en-IN"}]},
+  {id:"l",chip:"ल · l",tongue:"lateral",lips:{u:84,l:118,s:0},dot:[171,72],air:null,
+   kicker:"TIP ON THE RIDGE",title:"ल · l",
+   steps:["Touch the tip of your tongue to the ridge behind your top teeth.","Let the sides of your tongue drop so air flows around them.","Keep your voice on; l is a smooth, humming sound."],
+   tip:"Hold the tip still and say “la la la”. Only the tip should touch.",say:[{t:"लड्डू",l:"hi-IN"},{t:"lorry",l:"en-IN"}]},
+  {id:"r",chip:"र · r",tongue:"curl",lips:{u:88,l:112,s:4},dot:null,air:null,
+   kicker:"TIP UP, NOT TOUCHING",title:"र · r",
+   steps:["English r: pull your tongue back, tip pointing up but touching nothing.","Draw the sides of your tongue in slightly and round your lips a little.","Keep your voice on. Hindi र is different: a quick tap of the tip on the ridge."],
+   tip:"If your tongue touches the roof, it becomes a tap (Hindi र). English r floats just below it.",say:[{t:"रंग",l:"hi-IN"},{t:"red",l:"en-IN"}]},
+  {id:"th",chip:"th",tongue:"th",lips:{u:84,l:118,s:0},dot:[197,101],air:null,
+   kicker:"TIP BETWEEN THE TEETH",title:"th (thin, three)",
+   steps:["Gently place the tip of your tongue between your top and bottom front teeth.","Blow air softly over it for th in “thin”. Add your voice for th in “this”.","Pull the tongue back in. No biting!"],
+   tip:"A mirror helps here: you should just see the tongue tip peeking out.",say:[{t:"thin",l:"en-IN"},{t:"three",l:"en-IN"}]},
+  {id:"pbm",chip:"प ब म · p b m",tongue:"rest",lips:{u:100,l:100,s:0},dot:[205,100],air:null,
+   kicker:"LIPS TOGETHER",title:"प ब म · p b m",
+   steps:["Close both lips together while your tongue rests relaxed.","For p and b, build a little air, then open the lips with a pop.","For m, keep the lips closed and hum through your nose."],
+   tip:"p is quiet, b and m use your voice. Hold a tissue in front of your mouth: it moves most for p.",say:[{t:"पानी",l:"hi-IN"},{t:"map",l:"en-IN"}]}
+];
+const TWISTERS=[
+  {id:"h1",lang:"hi",text:"तीन तिगाड़ा काम बिगाड़ा",roman:"teen tigada kaam bigada",level:"Easy",focus:["dental","pbm"]},
+  {id:"h2",lang:"hi",text:"सात सुंदर सितारे सुबह सो गए",roman:"saat sundar sitare subah so gaye",level:"Easy",focus:["s"]},
+  {id:"h3",lang:"hi",text:"लाला लाल लड्डू लाया",roman:"lala laal laddoo laaya",level:"Easy",focus:["l"]},
+  {id:"h4",lang:"hi",text:"कच्चा पापड़ पक्का पापड़",roman:"kachcha papad, pakka papad",level:"Medium",focus:["pbm","ch","k"]},
+  {id:"h5",lang:"hi",text:"टट्टू ने टमाटर की टोकरी टकरा दी",roman:"tattoo ne tamatar ki tokri takra di",level:"Medium",focus:["retro"]},
+  {id:"h6",lang:"hi",text:"रानी रोज़ रंगीन रस्सी रखती है",roman:"rani roz rangeen rassi rakhti hai",level:"Medium",focus:["r"]},
+  {id:"h7",lang:"hi",text:"चंदू के चाचा ने चंदू की चाची को चांदी की चम्मच से चटनी चटाई",roman:"Chandu ke chacha ne Chandu ki chachi ko chaandi ki chammach se chutney chatayi",level:"Hard",focus:["ch"]},
+  {id:"e1",lang:"en",text:"Big black bug bit a big black bear",roman:"",level:"Easy",focus:["pbm","k","l"]},
+  {id:"e2",lang:"en",text:"She sells sea shells by the sea shore",roman:"",level:"Medium",focus:["s","sh"]},
+  {id:"e3",lang:"en",text:"Peter Piper picked a peck of pickled peppers",roman:"",level:"Medium",focus:["pbm","k"]},
+  {id:"e4",lang:"en",text:"How can a clam cram in a clean cream can?",roman:"",level:"Medium",focus:["k","l","pbm"]},
+  {id:"e5",lang:"en",text:"Red lorry, yellow lorry",roman:"",level:"Hard",focus:["r","l"]},
+  {id:"e6",lang:"en",text:"Three thin thieves thought a thousand thoughts",roman:"",level:"Hard",focus:["th"]}
+];
+
+// Speak one or more phrases in order (used for twisters and "Hear the sound").
+function speakList(items,el,rate){
+  if(!("speechSynthesis" in window)){notify("Text-to-speech is not available in this browser.");return}
+  window.speechSynthesis.cancel();
+  document.querySelectorAll(".is-speaking").forEach(n=>n.classList.remove("is-speaking"));
+  const id=++speakId,done=()=>{if(id===speakId&&el)el.classList.remove("is-speaking")};
+  const voices=window.speechSynthesis.getVoices();
+  const lang0=items[0].l.slice(0,2).toLowerCase();
+  if(voices.length&&!voices.some(v=>v.lang.toLowerCase().startsWith(lang0)))notify(lang0==="hi"?"No Hindi voice found on this device. Add one in your system language settings.":"No matching voice found on this device.");
+  items.forEach((it,i)=>{
+    const u=new SpeechSynthesisUtterance(it.t);u.lang=it.l;u.rate=rate||.7;
+    if(i===items.length-1){u.onend=done;u.onerror=done}
+    window.speechSynthesis.speak(u);
+  });
+  if(el){el.classList.add("is-speaking");setTimeout(done,12000)}
+}
+
+(function(){
+  const tongueEl=$("mTongue"),lipU=$("mLipU"),lipL=$("mLipL"),dot=$("mDot"),ring=$("mRing"),air=$("mAir");
+  let cur={n:TONGUE.rest.slice(),u:84,l:118,s:0},raf=0,active="k",filter="all";
+
+  function tonguePath(a){
+    return `M${a[0]},${a[1]} L${a[2]},${a[3]} C${a[4]},${a[5]} ${a[6]},${a[7]} ${a[8]},${a[9]} C${a[10]},${a[11]} ${a[12]},${a[13]} ${a[14]},${a[15]} C${a[16]},${a[17]} ${a[18]},${a[19]} ${a[20]},${a[21]} L${a[22]},${a[23]} C${a[24]},${a[25]} ${a[26]},${a[27]} ${a[0]},${a[1]} Z`;
+  }
+  function paint(){
+    tongueEl.setAttribute("d",tonguePath(cur.n));
+    lipU.setAttribute("x",194+cur.s);lipU.setAttribute("height",Math.max(8,cur.u-56));
+    lipL.setAttribute("x",194+cur.s);lipL.setAttribute("y",cur.l);
+  }
+  function markers(snd){
+    if(snd.dot){[dot,ring].forEach(c=>{c.setAttribute("cx",snd.dot[0]);c.setAttribute("cy",snd.dot[1]);c.classList.add("on")})}
+    if(snd.air){air.setAttribute("d",snd.air);air.classList.add("on")}
+  }
+  function clearMarkers(){[dot,ring,air].forEach(n=>n.classList.remove("on"))}
+  function showSound(id,animate){
+    const snd=SOUNDS.find(s=>s.id===id)||SOUNDS[0];active=snd.id;
+    document.querySelectorAll("#mouthTabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sound===snd.id)));
+    $("mouthKicker").textContent=snd.kicker;$("mouthTitle").textContent=snd.title;
+    $("mouthSteps").innerHTML=snd.steps.map(s=>`<li>${escapeHTML(s)}</li>`).join("");
+    $("mouthTip").textContent="Tip: "+snd.tip;
+    replay($("mouthInfo"),"swap");
+    cancelAnimationFrame(raf);clearMarkers();
+    const to={n:TONGUE[snd.tongue],u:snd.lips.u,l:snd.lips.l,s:snd.lips.s};
+    if(!animate||prefersReduced()){cur={n:to.n.slice(),u:to.u,l:to.l,s:to.s};paint();markers(snd);return}
+    const from={n:cur.n.slice(),u:cur.u,l:cur.l,s:cur.s},t0=performance.now(),dur=650;
+    const step=now=>{
+      const t=Math.min(1,(now-t0)/dur),k=1-Math.pow(1-t,3);
+      cur={n:from.n.map((v,i)=>v+(to.n[i]-v)*k),u:from.u+(to.u-from.u)*k,l:from.l+(to.l-from.l)*k,s:from.s+(to.s-from.s)*k};
+      paint();
+      if(t<1)raf=requestAnimationFrame(step);else markers(snd);
+    };
+    raf=requestAnimationFrame(step);
+  }
+
+  $("mouthTabs").innerHTML=SOUNDS.map(s=>`<button type="button" data-sound="${s.id}" aria-pressed="false">${escapeHTML(s.chip)}</button>`).join("");
+  $("mouthTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sound]");if(b)showSound(b.dataset.sound,true)});
+  $("mouthHear").addEventListener("click",()=>{const s=SOUNDS.find(x=>x.id===active);speakList(s.say,$("mouthHear"),.6)});
+  $("mouthReplay").addEventListener("click",()=>{cur={n:TONGUE.rest.slice(),u:84,l:118,s:0};paint();showSound(active,true)});
+
+  function renderTwisters(){
+    const list=TWISTERS.filter(t=>filter==="all"||t.lang===filter);
+    $("twisterList").innerHTML=list.map(t=>`
+      <article class="twister" data-id="${t.id}">
+        <div class="tw-top"><span class="tag">${t.lang==="hi"?"हिन्दी":"ENGLISH"}</span><span class="lvl ${t.level.toLowerCase()}">${t.level.toUpperCase()}</span></div>
+        <p class="tw-text" lang="${t.lang}">${escapeHTML(t.text)}</p>
+        ${t.roman?`<p class="tw-roman">${escapeHTML(t.roman)}</p>`:""}
+        <div class="tw-focus"><span class="mini-label">SHAPE THE SOUND</span>${t.focus.map(f=>{const s=SOUNDS.find(x=>x.id===f);return `<button type="button" data-sound="${f}">${escapeHTML(s.chip)}</button>`}).join("")}</div>
+        <div class="tw-actions">
+          <button type="button" class="button outline sm" data-rate=".5">🐢 Slow</button>
+          <button type="button" class="button outline sm" data-rate=".85">▶ Normal</button>
+          <button type="button" class="button outline sm" data-rate="1.15">🐇 Fast</button>
+        </div>
+      </article>`).join("");
+  }
+  $("twisterList").addEventListener("click",e=>{
+    const rate=e.target.closest("[data-rate]");
+    if(rate){const t=TWISTERS.find(x=>x.id===rate.closest(".twister").dataset.id);speakList([{t:t.text,l:t.lang==="hi"?"hi-IN":"en-IN"}],rate,parseFloat(rate.dataset.rate));return}
+    const snd=e.target.closest("[data-sound]");
+    if(snd){showSound(snd.dataset.sound,true);if(window.matchMedia("(max-width:1050px)").matches)document.querySelector(".mouth-panel").scrollIntoView({behavior:prefersReduced()?"auto":"smooth",block:"start"})}
+  });
+  $("twisterFilter").addEventListener("click",e=>{
+    const b=e.target.closest("[data-filter]");if(!b)return;
+    filter=b.dataset.filter;
+    document.querySelectorAll("#twisterFilter button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+    renderTwisters();
+  });
+
+  renderTwisters();
+  showSound("k",false);
 })();

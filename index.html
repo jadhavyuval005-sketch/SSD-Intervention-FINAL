@@ -56,16 +56,17 @@
 
         <label class="field">Password
           <span class="pw-row">
-            <input type="password" id="password" autocomplete="current-password" placeholder="At least 8 characters" required>
+            <input type="password" id="password" autocomplete="current-password" placeholder="At least 6 characters" required>
             <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false">Show</button>
           </span>
           <span class="field-error" id="passwordError"></span>
         </label>
 
-        <label class="field only-register" id="roleField" hidden>I am a
+        <label class="field">I am a
           <select id="role">
             <option value="Client">Client</option>
             <option value="Clinician">Clinician</option>
+            <option value="Administrator">Administrator</option>
           </select>
         </label>
 
@@ -74,7 +75,6 @@
           <button type="button" class="link-button" id="forgotBtn">Forgot password?</button>
         </div>
 
-        <p class="field-error" id="formError" role="alert"></p>
         <button class="button primary full" type="submit" id="submitBtn">Sign in <span>→</span></button>
         <div class="divider">or</div>
         <button class="button outline full" type="button" id="guestBtn">Continue as guest</button>
@@ -82,7 +82,7 @@
 
       <div class="login-note">
         <span>ⓘ</span>
-        <p><b>Your account is stored on the VaaniAI server.</b> Continue as guest to try the app without an account; guest practice stays in this browser only.</p>
+        <p><b>Demo sign-in.</b> This page is not connected to the Flask API yet, so no password is checked and nothing is sent to a server. Your name and role are saved in this browser only.</p>
       </div>
     </section>
   </div>
@@ -96,6 +96,7 @@
       <button class="nav active" data-tab="home"><span>⌂</span> Home</button>
       <button class="nav" data-tab="practice"><span>♫</span> Speech practice</button>
       <button class="nav" data-tab="progress"><span>▥</span> My progress</button>
+      <button class="nav" data-tab="twisters"><span>≈</span> Tongue twisters</button>
       <button class="nav" data-tab="learn"><span>✦</span> Learn & support</button>
     </nav>
     <div class="side-bottom">
@@ -110,7 +111,23 @@
     <header class="topbar">
       <button class="menu-button" id="menuButton" aria-label="Open menu">☰</button>
       <div><p class="overline">HINDI + ENGLISH SPEECH PRACTICE</p><h1 id="pageTitle">Welcome to VaaniAI</h1></div>
-      <div class="top-right"><span class="secure"><i></i> Demo workspace</span><button class="user-chip" id="userChip"><span id="chipInitial">Y</span><span id="chipName">Yuval</span>⌄</button></div>
+      <div class="top-right">
+        <div class="profile-wrap">
+          <button class="user-chip" id="userChip" aria-haspopup="menu" aria-expanded="false" aria-controls="profileMenu"><span id="chipInitial">Y</span><span id="chipName">Yuval</span><span class="chev" aria-hidden="true">⌄</span></button>
+          <div class="profile-menu" id="profileMenu" role="menu" aria-label="Account menu" hidden>
+            <div class="pm-head"><span class="pm-avatar" id="pmAvatar">Y</span><div><strong id="pmName">Yuval</strong><small id="pmRole">Client workspace</small></div></div>
+            <p class="pm-label">ACCOUNT</p>
+            <button class="pm-item" role="menuitem" id="pmEdit"><span>✎</span> Edit name &amp; role</button>
+            <button class="pm-item" role="menuitem" data-go="progress"><span>▥</span> My progress</button>
+            <p class="pm-label">EXPLORE</p>
+            <button class="pm-item" role="menuitem" data-go="twisters"><span>≈</span> Tongue twisters</button>
+            <button class="pm-item" role="menuitem" data-go="practice"><span>♫</span> Speech practice</button>
+            <button class="pm-item" role="menuitem" data-go="learn"><span>✦</span> Learn &amp; support</button>
+            <div class="pm-sep"></div>
+            <button class="pm-item pm-danger" role="menuitem" id="pmLogout"><span>⎋</span> Log out</button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <section class="screen active" id="home">
@@ -137,7 +154,7 @@
     </section>
 
     <section class="screen" id="practice">
-      <div class="page-intro"><div><p class="overline">GUIDED TRAINING · UC2–UC9</p><h2>Speech practice</h2><p>Pick a language, select a sound, listen, and record a practice attempt.</p></div><div class="intro-symbol">♫</div></div>
+      <div class="page-intro"><div><p class="overline">GUIDED TRAINING · UC2–UC9</p><h2>Speech practice</h2><p>Pick a language, select a sound, listen, and record a practice attempt.</p></div></div>
       <div class="safety-note"><span>ⓘ</span><p><b>Friendly reminder:</b> this interface supports practice and reflection only. It does not diagnose a speech disorder or replace a speech-language professional.</p></div>
       <div class="practice-layout">
         <div class="panel practice-settings">
@@ -162,7 +179,7 @@
     </section>
 
     <section class="screen" id="progress">
-      <div class="page-intro"><div><p class="overline">YOUR JOURNEY</p><h2>My progress</h2><p>Review saved attempts and notice your practice habits over time.</p></div><div class="intro-symbol">▥</div></div>
+      <div class="page-intro"><div><p class="overline">YOUR JOURNEY</p><h2>My progress</h2><p>Review saved attempts and notice your practice habits over time.</p></div></div>
       <div class="progress-summary">
         <article class="progress-card"><small>Saved attempts</small><strong id="progressTotal">0</strong><span>Across all practice sessions</span></article>
         <article class="progress-card"><small>Languages explored</small><strong id="languageTotal">0</strong><span>Based on saved attempts</span></article>
@@ -172,8 +189,55 @@
       <div class="role-strip"><span>ⓘ</span><div><b>About progress feedback</b><p>These counts describe saved practice activity only. They are not clinical scores, speech accuracy measurements, or a diagnosis.</p></div></div>
     </section>
 
+    <section class="screen" id="twisters">
+      <div class="page-intro"><div><p class="overline">SOUND PLAY · HINDI + ENGLISH</p><h2>Tongue twisters</h2><p>See where your tongue goes for each sound, then play with fun phrases: slowly first, then faster.</p></div></div>
+      <div class="safety-note"><span>ⓘ</span><p><b>Have fun with it:</b> tongue twisters are meant to be tricky. Stop if your mouth feels tired or sore. This is playful practice, not a speech test or diagnosis.</p></div>
+      <div class="twister-layout">
+        <div class="panel mouth-panel">
+          <div class="panel-title"><span class="number">01</span><div><h3>Where does my tongue go?</h3><p>Pick a sound and watch the tongue move (side view of the mouth).</p></div></div>
+          <div class="mouth-stage">
+            <svg id="mouthSvg" viewBox="30 8 196 190" role="img" aria-labelledby="mouthSvgTitle">
+              <title id="mouthSvgTitle">Side view of a mouth showing where the tongue moves for the chosen sound</title>
+              <defs><marker id="mArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d6eaff"/></marker></defs>
+              <rect class="m-head" x="34" y="14" width="178" height="182" rx="46"/>
+              <path class="m-cavity" d="M196,80 C182,80 172,72 160,63 C136,46 100,44 80,56 C62,66 54,84 52,100 L50,172 C100,184 160,170 194,134 Z"/>
+              <path id="mTongue" class="m-tongue" d=""/>
+              <path class="m-palate" d="M196,80 C182,80 172,72 160,63 C136,46 100,44 80,56 C62,66 54,84 52,100"/>
+              <rect class="m-teeth" x="184" y="76" width="11" height="20" rx="3"/>
+              <rect class="m-teeth" x="184" y="108" width="11" height="20" rx="3"/>
+              <rect id="mLipU" class="m-lip" x="194" y="56" width="24" height="28" rx="11"/>
+              <rect id="mLipL" class="m-lip" x="194" y="118" width="24" height="26" rx="11"/>
+              <path id="mAir" class="m-air" d="" marker-end="url(#mArrow)"/>
+              <circle id="mRing" class="m-ring" r="5" cx="0" cy="0"/>
+              <circle id="mDot" class="m-dot" r="5" cx="0" cy="0"/>
+              <text class="m-label" x="40" y="42">soft palate</text>
+              <text class="m-label" x="108" y="34" text-anchor="middle">hard palate</text>
+              <text class="m-label" x="168" y="50" text-anchor="middle">ridge</text>
+              <text class="m-label" x="190" y="158" text-anchor="middle">teeth</text>
+              <text class="m-label in" x="68" y="164">tongue</text>
+            </svg>
+          </div>
+          <div class="sound-tabs" id="mouthTabs" aria-label="Choose a sound"></div>
+          <div class="mouth-info" id="mouthInfo">
+            <span class="mini-label" id="mouthKicker"></span>
+            <h3 id="mouthTitle"></h3>
+            <ol class="mouth-steps" id="mouthSteps"></ol>
+            <p class="mouth-tip" id="mouthTip"></p>
+            <div class="practice-actions"><button class="button outline" id="mouthHear">▶ Hear the sound</button><button class="button outline" id="mouthReplay">↻ Replay the movement</button></div>
+          </div>
+        </div>
+        <div class="panel twister-panel">
+          <div class="panel-title"><span class="number">02</span><div><h3>Try a tongue twister</h3><p>Listen, then say it along. Tap a move to see how to shape it.</p></div></div>
+          <div class="ladder" aria-label="Practice ladder"><b>1 · Slow</b><span>→</span><b>2 · Normal</b><span>→</span><b>3 · Fast</b></div>
+          <div class="seg" id="twisterFilter" aria-label="Filter by language"><button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="hi" aria-pressed="false">हिन्दी</button><button type="button" data-filter="en" aria-pressed="false">English</button></div>
+          <div class="twister-list" id="twisterList"></div>
+          <p class="small-disclaimer">Audio uses your browser’s built-in voice. If a Hindi voice is not installed on your device, add one in your system language settings. Ready to record yourself? <button type="button" class="link-button" data-go="practice">Go to speech practice →</button></p>
+        </div>
+      </div>
+    </section>
+
     <section class="screen" id="learn">
-      <div class="page-intro"><div><p class="overline">SUPPORTIVE PRACTICE</p><h2>Learn & support</h2><p>Simple tips for a calm, positive practice routine.</p></div><div class="intro-symbol">✦</div></div>
+      <div class="page-intro"><div><p class="overline">SUPPORTIVE PRACTICE</p><h2>Learn & support</h2><p>Simple tips for a calm, positive practice routine.</p></div></div>
       <div class="feature-resource"><div class="feature-symbol">आ</div><div><span class="tag">START HERE</span><h3>Make practice feel comfortable</h3><p>Choose a quiet place, keep practice sessions short, and encourage trying without pressure. Every attempt is useful information.</p></div></div>
       <div class="resource-grid">
         <article class="resource-card"><div class="resource-icon teal">耳</div><span class="mini-label">LISTENING</span><h3>Listen before speaking</h3><p>Listen to the example sound carefully. Repeat it at a comfortable pace and take breaks when needed.</p><button class="link-button learn-more" data-topic="listening">Read tips →</button></article>

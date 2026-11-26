@@ -37,14 +37,14 @@ body::after{width:460px;height:460px;bottom:-160px;left:240px;background:radial-
 .logo{transition:transform .35s var(--ease-spring);animation:bump .8s var(--ease-spring) .2s backwards}
 .brand:hover .logo{transform:rotate(-8deg) scale(1.08)}
 .user-card{animation:riseIn .5s var(--ease-out) .2s backwards}
-.online-dot,.secure i{animation:ping 2s ease-out infinite}
-.secure i{box-shadow:none}
+.online-dot{animation:ping 2s ease-out infinite}
 
 .nav{position:relative;transition:background .25s,color .25s,transform .25s var(--ease-out);animation:riseIn .5s var(--ease-out) backwards}
 .sidebar nav .nav:nth-child(1){animation-delay:.3s}
 .sidebar nav .nav:nth-child(2){animation-delay:.36s}
 .sidebar nav .nav:nth-child(3){animation-delay:.42s}
 .sidebar nav .nav:nth-child(4){animation-delay:.48s}
+.sidebar nav .nav:nth-child(5){animation-delay:.54s}
 .nav:hover{transform:translateX(4px)}
 .nav span{display:inline-block;transition:transform .3s var(--ease-spring)}
 .nav:hover span{transform:rotate(-12deg) scale(1.2)}
@@ -74,10 +74,10 @@ body::after{width:460px;height:460px;bottom:-160px;left:240px;background:radial-
 .screen.active>*:nth-child(n+6){animation-delay:.34s}
 /* grids hand the stagger down to their own children */
 .screen.active>.metrics,.screen.active>.progress-summary,.screen.active>.home-grid,
-.screen.active>.resource-grid,.screen.active>.practice-layout{animation:none}
-.metrics>*,.progress-summary>*,.home-grid>*,.resource-grid>*,.practice-layout>*{animation:riseIn .6s var(--ease-out) backwards}
-.metrics>:nth-child(1),.progress-summary>:nth-child(1),.home-grid>:nth-child(1),.resource-grid>:nth-child(1),.practice-layout>:nth-child(1){animation-delay:.2s}
-.metrics>:nth-child(2),.progress-summary>:nth-child(2),.home-grid>:nth-child(2),.resource-grid>:nth-child(2),.practice-layout>:nth-child(2){animation-delay:.28s}
+.screen.active>.resource-grid,.screen.active>.practice-layout,.screen.active>.twister-layout{animation:none}
+.metrics>*,.progress-summary>*,.home-grid>*,.resource-grid>*,.practice-layout>*,.twister-layout>*{animation:riseIn .6s var(--ease-out) backwards}
+.metrics>:nth-child(1),.progress-summary>:nth-child(1),.home-grid>:nth-child(1),.resource-grid>:nth-child(1),.practice-layout>:nth-child(1),.twister-layout>:nth-child(1){animation-delay:.2s}
+.metrics>:nth-child(2),.progress-summary>:nth-child(2),.home-grid>:nth-child(2),.resource-grid>:nth-child(2),.practice-layout>:nth-child(2),.twister-layout>:nth-child(2){animation-delay:.28s}
 .metrics>:nth-child(3),.progress-summary>:nth-child(3),.resource-grid>:nth-child(3){animation-delay:.36s}
 .resource-grid>:nth-child(4){animation-delay:.44s}
 
@@ -126,8 +126,7 @@ body::after{width:460px;height:460px;bottom:-160px;left:240px;background:radial-
 }
 .metric,.progress-card,.resource-card,.panel{position:relative}
 .metric-icon,.resource-icon,.arrow-bubble{transition:transform .35s var(--ease-spring)}
-.intro-symbol,.feature-symbol{animation:bob 4s ease-in-out infinite}
-.feature-symbol{animation-duration:3.4s}
+.feature-symbol{animation:bob 3.4s ease-in-out infinite}
 
 @media(hover:hover){
   .metric:hover,.progress-card:hover,.resource-card:hover{transform:translateY(-4px);border-color:#3f6a63;box-shadow:0 14px 34px #0006,0 0 0 1px #2ed3bd22}
@@ -254,6 +253,23 @@ body::after{width:460px;height:460px;bottom:-160px;left:240px;background:radial-
   from{opacity:1;transform:translate(var(--x),var(--y)) scale(.4) rotate(0)}
   to{opacity:0;transform:translate(calc(var(--x) + var(--dx)),calc(var(--y) + var(--dy))) scale(1.2) rotate(var(--rot))}
 }
+
+/* ---------- Profile dropdown ---------- */
+.profile-menu:not([hidden]){animation:menuIn .32s var(--ease-spring) backwards;transform-origin:top right}
+@keyframes menuIn{from{opacity:0;transform:translateY(-8px) scale(.94)}}
+.pm-item{transition:background .2s,color .2s,transform .2s var(--ease-out)}
+.pm-item:hover{transform:translateX(3px)}
+
+/* ---------- Tongue twisters ---------- */
+.m-air.on{animation:airFlow 1s linear infinite}
+@keyframes airFlow{to{stroke-dashoffset:-20}}
+.m-ring.on{animation:dotRing 1.4s ease-out infinite}
+@keyframes dotRing{from{transform:scale(1);opacity:.9}to{transform:scale(3.2);opacity:0}}
+.mouth-info.swap>*{animation:riseIn .4s var(--ease-out) backwards}
+.sound-tabs button:active,.seg button:active,.tw-focus button:active{transform:scale(.94)}
+.twister{transition:border-color .3s,transform .3s var(--ease-out);animation:riseIn .5s var(--ease-out) backwards}
+.twister:nth-child(2){animation-delay:.05s}.twister:nth-child(3){animation-delay:.1s}.twister:nth-child(n+4){animation-delay:.15s}
+@media(hover:hover){.twister:hover{border-color:#3f6a63}}
 
 /* ---------- Respect "reduce motion" ---------- */
 @media(prefers-reduced-motion:reduce){
